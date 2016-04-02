@@ -23,8 +23,20 @@ const compress = ( fn, threshold, ratio ) => t => {
   return out;
 };
 
+const wet = audioContext.createGain();
+wet.gain.value = 0.5;
+wet.connect( audioContext.destination );
+
+const dry = audioContext.createGain();
+dry.gain.value = 1 - wet.gain.value;
+dry.connect( audioContext.destination );
+
 const convolver = audioContext.createConvolver();
-convolver.connect( audioContext.destination );
+convolver.connect( wet );
+
+const master = audioContext.createGain();
+master.connect( dry );
+master.connect( convolver );
 
 const impulseResponse = (t, i, a) => ( 2 * Math.random() - 1 ) * Math.pow( 1000, -i / a.length );
 convolver.buffer = generateAudioBuffer( impulseResponse, 1, 1 );
@@ -39,11 +51,11 @@ const sound = generateAudioBuffer( lowp_sin_delay( note( 'a', 4 ) ), 0.3, 0.2 );
 const sound2 = generateAudioBuffer( lowp_sin_delay( note( 'a', 3 ) ), 0.3, 0.2 );
 const sound3 = generateAudioBuffer( lowp_sin_delay( note( 'e', 4 ) ), 0.3, 0.2 );
 
-playSound( sound, 0, convolver );
-playSound( sound2, 0.2, convolver );
-playSound( sound2, 0.4, convolver );
-playSound( sound3, 0.6, convolver );
-playSound( sound, 0.8, convolver );
-playSound( sound2, 1, convolver );
-playSound( sound3, 1.2, convolver );
-playSound( sound2, 1.4, convolver );
+playSound( sound, 0, master );
+playSound( sound2, 0.2, master );
+playSound( sound2, 0.4, master );
+playSound( sound3, 0.6, master );
+playSound( sound, 0.8, master );
+playSound( sound2, 1, master );
+playSound( sound3, 1.2, master );
+playSound( sound2, 1.4, master );
