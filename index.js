@@ -59,3 +59,63 @@ playSound( sound, 0.8, master );
 playSound( sound2, 1, master );
 playSound( sound3, 1.2, master );
 playSound( sound2, 1.4, master );
+
+class Sequencer {
+  constructor( instrument, {
+    bpm = 90,
+    timeSignature = [ 4, 4 ],
+    destination
+  } = {} ) {
+    this.instrument = instrument;
+    this.bpm = bpm;
+    this.timeSignature = timeSignature;
+    this.destination = destination;
+  }
+
+  play( bars ) {
+    bars.map( bar => {
+      switch ( typeof bar ) {
+        // Play note for one bar.
+        case 'string':
+          break;
+
+        // Rest,
+        case 'number':
+          break;
+
+        // Polyphonic.
+        case 'object':
+          break;
+
+        // Tap into synth.
+        case 'function':
+          break;
+      }
+    });
+  }
+}
+
+const sequencer = new Sequencer();
+sequencer.play([
+  // A4 with one beat in the default time signature.
+  'a4',
+  // Amaj chord with one beat in the default time signature.
+  'a4_cs4_e4',
+  // A4 with a quarter note.
+  { a4: 1 / 2 },
+  [ 'a4', 1 / 2 ],
+  // Rest for half note.
+  1 / 2,
+  [ 0, 1 / 2 ],
+  // Play Amaj for a quarter note with a delay of a sixteenth note.
+  // Positional arguments?
+  // Needs more complex configuration.
+  { a3_cs3_e3: [ 1 / 4, 1 / 16 ] },
+  [ [ 'a3', 'cs3', 'e3' ], 1 / 4, 1 / 16 ],
+  // A4 quarter note and D4 half note.
+  { a3: 1 / 2, d4: 1 / 4 },
+  // Tap into sequencer?
+  s => s.bpm = 120,
+  // C4 with new bpm.
+  'c4'
+]);
