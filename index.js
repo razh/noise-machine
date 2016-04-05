@@ -5,7 +5,16 @@ const A4 = 69;
 const toFreq = note => Math.pow( 2, ( note - A4 ) / 12 ) * 440;
 
 const noteNames = [ 'c', 'cs', 'd', 'ds', 'e', 'f', 'fs', 'g', 'gs', 'a', 'as', 'b' ];
-const note = ( name, octave ) => toFreq( noteNames.indexOf( name ) + 12 * ( octave + 1 ) );
+const n_o = ( name, octave ) => toFreq( noteNames.indexOf( name ) + 12 * ( octave + 1 ) );
+const no = name => {
+  const match = name.match( /^(\w+)(\d+)$/ );
+  if ( match ) {
+    const [ , note, octave ] = match;
+    return n_o( note, Number( octave ) );
+  }
+};
+
+const nos = name => name.split( '_' ).map( no ).filter( Boolean );
 
 const compose = ( ...fns ) => t => fns.reduce( ( out, fn ) => fn( out ), t );
 const mix = ( a, b, x ) => t => ( 1 - x ) * a( t ) + x * b( t );
@@ -47,9 +56,9 @@ const lowp_sin_delay = f => {
   return gain( compress( mix( lowpsin, gain( delay( lowpsin, -0.1 ), 0.2 ), 0.2 ), 0.4, 3 ), 2 );
 };
 
-const sound = generateAudioBuffer( lowp_sin_delay( note( 'a', 4 ) ), 0.3, 0.2 );
-const sound2 = generateAudioBuffer( lowp_sin_delay( note( 'a', 3 ) ), 0.3, 0.2 );
-const sound3 = generateAudioBuffer( lowp_sin_delay( note( 'e', 4 ) ), 0.3, 0.2 );
+const sound = generateAudioBuffer( lowp_sin_delay( n_o( 'a', 4 ) ), 0.3, 0.2 );
+const sound2 = generateAudioBuffer( lowp_sin_delay( n_o( 'a', 3 ) ), 0.3, 0.2 );
+const sound3 = generateAudioBuffer( lowp_sin_delay( n_o( 'e', 4 ) ), 0.3, 0.2 );
 
 playSound( sound, 0, master );
 playSound( sound2, 0.2, master );
@@ -70,33 +79,75 @@ class Sequencer {
     this.bpm = bpm;
     this.timeSignature = timeSignature;
     this.destination = destination;
+    this.cache = {};
+
+    this.play = this.play.bind( this );
   }
 
-  play( bars ) {
-    bars.map( bar => {
-      switch ( typeof bar ) {
-        // Play note for one bar.
-        case 'string':
-          break;
+  play( note ) {
+    let buffer = this.cache[ note ];
+    if ( !buffer ) {
+      buffer = generateAudioBuffer( this.instrument( note ), 0.3, 0.2 );
+      this.cache[ note ] = buffer;
+    }
 
-        // Rest,
-        case 'number':
-          break;
+    playSound( buffer, 0, this.destination );
+  }
 
-        // Polyphonic.
-        case 'object':
-          break;
+  sequence( notes ) {
+    notes.reduce( ( promise, note ) => {
+      return promise.then( () => {
+        return new Promise( resolve => {
+          const beat = 60 * 1000 / this.bpm * ( this.timeSignature[0] / this.timeSignature[1] );
 
-        // Tap into synth.
-        case 'function':
-          break;
-      }
-    });
+          switch ( typeof note ) {
+            // Play note for one beat.
+            case 'string':
+              console.log( 'Play', nos( note ) );
+              nos( note ).map( this.play );
+              setTimeout( resolve, beat );
+              break;
+
+            // Rest,
+            case 'number':
+              setTimeout( resolve, note * beat );
+              break;
+
+            // Polyphonic.
+            case 'object':
+              Promise.all( Object.keys( note ).map( key => {
+                return new Promise( resolve => {
+                  if ( typeof note[ key ] === 'number') {
+                    console.log( 'Play', key, nos( key ), 'for', note[ key ] );
+                    nos( key ).map( this.play );
+                    setTimeout( resolve, note[ key ] * beat );
+                  } else {
+                    resolve();
+                  }
+                });
+              }))
+              .then( resolve );
+              break;
+
+            // Tap into synth.
+            case 'function':
+              note( this );
+              resolve();
+              break;
+
+            default:
+              resolve();
+          }
+        });
+      });
+    }, Promise.resolve() );
   }
 }
 
-const sequencer = new Sequencer();
-sequencer.play([
+const sequencer = new Sequencer( lowp_sin_delay, {
+  destination: master
+});
+const sequence = [
   // A4 with one beat in the default time signature.
   'a4',
   // Amaj chord with one beat in the default time signature.
@@ -110,6 +161,7 @@ sequencer.play([
   // Play Amaj for a quarter note with a delay of a sixteenth note.
   // Positional arguments?
   // Needs more complex configuration.
+  { b3_g4: 1 / 4 },
   { a3_cs3_e3: [ 1 / 4, 1 / 16 ] },
   [ [ 'a3', 'cs3', 'e3' ], 1 / 4, 1 / 16 ],
   // A4 quarter note and D4 half note.
@@ -117,5 +169,9 @@ sequencer.play([
   // Tap into sequencer?
   s => s.bpm = 120,
   // C4 with new bpm.
-  'c4'
-]);
+  'c4',
+  'd4',
+  'e4',
+];
+
+setTimeout( () => sequencer.sequence( sequence ), 1500 );
