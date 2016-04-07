@@ -17,7 +17,8 @@ const no = name => {
 const nos = name => name.split( '_' ).map( no ).filter( Boolean );
 
 const compose = ( ...fns ) => t => fns.reduce( ( out, fn ) => fn( out ), t );
-const mix = ( a, b, x ) => t => ( 1 - x ) * a( t ) + x * b( t );
+const lerp = ( a, b, t ) => a + t * ( b - a );
+const mix = ( a, b, x ) => t => lerp( a( t ), b( t ), x );
 const delay = ( fn, d ) => t => fn( t + d );
 const gain = ( fn, gain ) => t => gain * fn( t );
 
@@ -31,6 +32,32 @@ const compress = ( fn, threshold, ratio ) => t => {
 
   return out;
 };
+
+const adsr = ( a, d, s, r, sustainLevel ) => {
+  d += a;
+  s += d;
+  r += s;
+
+  return t => {
+    if ( t <= a ) {
+      return t / a;
+    }
+
+    if ( t <= d ) {
+      return 1 + ( sustainLevel - 1 ) * ( t - a ) / ( d - a );
+    }
+
+    if ( t <= s ) {
+      return sustainLevel;
+    }
+
+    if ( t<= r ) {
+      return sustainLevel + ( 1 - ( t - s ) / ( r - s ) );
+    }
+
+    return 0;
+  }
+}
 
 const wet = audioContext.createGain();
 wet.gain.value = 0.5;
