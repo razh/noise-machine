@@ -62,6 +62,48 @@ const adsr = ( a, d, s, r, sustainLevel ) => {
   }
 }
 
+const extent = buffer => {
+  let min = Infinity;
+  let max = -Infinity;
+
+  for ( let i = 0; i < buffer.length; i++ ) {
+    if ( buffer[i] < min ) {
+      min = buffer[i];
+    }
+
+    if ( buffer[i] > max ) {
+      max = buffer[i];
+    }
+  }
+
+  return [ min, max ];
+}
+
+const graph = ( buffer, width = 480, height = 270 ) => {
+  const range = extent( buffer );
+  range[0] = Math.min( range[0], -1 );
+  range[1] = Math.max( range[1], 1 );
+
+  const x = i => width * i / buffer.length;
+  const y = d => map( d, range[0], range[1], height, 0 );
+
+  const canvas = document.createElement( 'canvas' );
+  const ctx = canvas.getContext( '2d' );
+
+  canvas.width = width;
+  canvas.height = height;
+
+  ctx.moveTo( x( 0 ), y( buffer[0] ) );
+  for ( let i = 1; i < buffer.length; i++ ) {
+    ctx.lineTo( x( i ), y( buffer[i] ) );
+  }
+
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+
+  document.body.appendChild( canvas );
+};
+
 const wet = audioContext.createGain();
 wet.gain.value = 0.5;
 wet.connect( audioContext.destination );
@@ -83,12 +125,16 @@ convolver.buffer = generateAudioBuffer( impulseResponse, 1, 1 );
 const lowp_sin_delay = f => {
   const sawsin = mix( mix( saw( f / 4 ), sin( f ), 0.6 ), tri( f * 2 ), 0.1 );
   const lowpsin = compose( lowpass( 1100 ), sawsin );
-  return gain( compress( mix( lowpsin, gain( delay( lowpsin, -0.1 ), 0.2 ), 0.2 ), 0.4, 3 ), 2 );
+  return envelope(
+    gain( compress( mix( lowpsin, gain( delay( lowpsin, -0.1 ), 0.2 ), 0.2 ), 0.4, 3 ), 2 ),
+    adsr( 0.01, 0.2, 0.1, 0, 0.3 )
+  );
 };
 
 const sound = generateAudioBuffer( lowp_sin_delay( n_o( 'a', 4 ) ), 0.3, 0.2 );
 const sound2 = generateAudioBuffer( lowp_sin_delay( n_o( 'a', 3 ) ), 0.3, 0.2 );
 const sound3 = generateAudioBuffer( lowp_sin_delay( n_o( 'e', 4 ) ), 0.3, 0.2 );
+graph(sound.getChannelData(0));
 
 playSound( sound, 0, master );
 playSound( sound2, 0.2, master );
