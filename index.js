@@ -18,12 +18,15 @@ const nos = name => name.split( '_' ).map( no ).filter( Boolean );
 
 const compose = ( ...fns ) => t => fns.reduce( ( out, fn ) => fn( out ), t );
 const lerp = ( a, b, t ) => a + t * ( b - a );
-const mix = ( a, b, x ) => t => lerp( a( t ), b( t ), x );
-const delay = ( fn, d ) => t => fn( t + d );
-const gain = ( fn, gain ) => t => gain * fn( t );
+const inverseLerp = ( a, b, x ) => ( x - a ) / ( b - a );
+const map = ( x, a, b, c, d ) => lerp( c, d, inverseLerp( a, b, x ) );
+const mix = ( n, m, x ) => ( t, i, a ) => lerp( n( t, i, a ), m( t, i, a ), x );
+const delay = ( fn, d ) => ( t, i, a ) => fn( t + d, i, a );
+const gain = ( fn, gain ) => ( t, i, a ) => gain * fn( t, i, a );
+const envelope = ( fn, env ) => ( t, i, a ) => fn( t, i, a ) * env( t, i, a );
 
-const compress = ( fn, threshold, ratio ) => t => {
-  const out = fn( t );
+const compress = ( fn, threshold, ratio ) => ( t, i, a ) => {
+  const out = fn( t, i, a );
   const delta = Math.abs( out ) - threshold;
 
   if ( delta > 0 ) {
@@ -51,7 +54,7 @@ const adsr = ( a, d, s, r, sustainLevel ) => {
       return sustainLevel;
     }
 
-    if ( t<= r ) {
+    if ( t <= r ) {
       return sustainLevel + ( 1 - ( t - s ) / ( r - s ) );
     }
 
