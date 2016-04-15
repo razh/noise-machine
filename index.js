@@ -120,7 +120,29 @@ master.connect( dry );
 master.connect( convolver );
 
 const impulseResponse = (t, i, a) => ( 2 * Math.random() - 1 ) * Math.pow( 1000, -i / a.length );
-convolver.buffer = generateAudioBuffer( impulseResponse, 1, 1 );
+const impulseResponseBuffer = generateAudioBuffer( impulseResponse, 1, 1 );
+
+function renderOffline() {
+  const { sampleRate } = audioContext;
+  const offlineCtx = new OfflineAudioContext( 1, impulseResponseBuffer.length, sampleRate );
+
+  const offlineFilter = offlineCtx.createBiquadFilter();
+  offlineFilter.type = 'lowpass';
+  offlineFilter.Q.value = 0.0001;
+  offlineFilter.frequency.value = 440;
+  offlineFilter.frequency.linearRampToValueAtTime( 220, 1 );
+  offlineFilter.connect( offlineCtx.destination );
+
+  const offlineBufferSource = offlineCtx.createBufferSource();
+  offlineBufferSource.buffer = impulseResponseBuffer;
+  offlineBufferSource.connect( offlineFilter );
+  offlineBufferSource.start();
+
+  offlineCtx.startRendering()
+    .then( buffer => convolver.buffer = buffer );
+}
+
+renderOffline();
 
 /*
   const sawsin = (
