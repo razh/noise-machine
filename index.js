@@ -1,3 +1,4 @@
+import flow from 'lodash/flow';
 import { audioContext, generateAudioBuffer, playSound } from './audio';
 import { sin, saw, saw_i, tri, square, lowpass } from './osc';
 
@@ -16,7 +17,6 @@ const no = name => {
 
 const nos = name => name.split( '_' ).map( no ).filter( Boolean );
 
-const compose = ( ...fns ) => t => fns.reduce( ( out, fn ) => fn( out ), t );
 const lerp = ( a, b, t ) => a + t * ( b - a );
 const inverseLerp = ( a, b, x ) => ( x - a ) / ( b - a );
 const map = ( x, a, b, c, d ) => lerp( c, d, inverseLerp( a, b, x ) );
@@ -122,9 +122,16 @@ master.connect( convolver );
 const impulseResponse = (t, i, a) => ( 2 * Math.random() - 1 ) * Math.pow( 1000, -i / a.length );
 convolver.buffer = generateAudioBuffer( impulseResponse, 1, 1 );
 
+/*
+  const sawsin = (
+    saw( f / 4 ),
+    mix( 0.6, sin( f ) ),
+    mix( 0.1, tri( f * 2 ) ),
+  );
+ */
 const lowp_sin_delay = f => {
   const sawsin = mix( mix( saw( f / 4 ), sin( f ), 0.6 ), tri( f * 2 ), 0.1 );
-  const lowpsin = compose( lowpass( 1100 ), sawsin );
+  const lowpsin = flow( lowpass( 1100 ), sawsin );
   return envelope(
     gain( compress( mix( lowpsin, gain( delay( lowpsin, -0.1 ), 0.2 ), 0.2 ), 0.4, 3 ), 2 ),
     adsr( 0.01, 0.2, 0.1, 0, 0.3 )
