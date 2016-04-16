@@ -25,6 +25,10 @@ const delay = ( fn, d ) => ( t, i, a ) => fn( t + d, i, a );
 const gain = ( fn, gain ) => ( t, i, a ) => gain * fn( t, i, a );
 const envelope = ( fn, env ) => ( t, i, a ) => fn( t, i, a ) * env( t, i, a );
 
+const chorus = ( fn, voices ) => (
+  ( t, i, a ) => voices.reduce( ( out, voice ) => out + fn( t * voice, i, a ) / voices.length, 0 )
+);
+
 const compress = ( fn, threshold, ratio ) => ( t, i, a ) => {
   const out = fn( t, i, a );
   const delta = Math.abs( out ) - threshold;
@@ -122,15 +126,15 @@ master.connect( convolver );
 const impulseResponse = (t, i, a) => ( 2 * Math.random() - 1 ) * Math.pow( 1000, -i / a.length );
 const impulseResponseBuffer = generateAudioBuffer( impulseResponse, 1, 1 );
 
-function renderOffline() {
+function renderLowPassOffline( convolver, startFrequency, endFrequency, duration ) {
   const { sampleRate } = audioContext;
   const offlineCtx = new OfflineAudioContext( 1, impulseResponseBuffer.length, sampleRate );
 
   const offlineFilter = offlineCtx.createBiquadFilter();
   offlineFilter.type = 'lowpass';
   offlineFilter.Q.value = 0.0001;
-  offlineFilter.frequency.value = 440;
-  offlineFilter.frequency.linearRampToValueAtTime( 220, 1 );
+  offlineFilter.frequency.value = startFrequency;
+  offlineFilter.frequency.linearRampToValueAtTime( endFrequency, duration );
   offlineFilter.connect( offlineCtx.destination );
 
   const offlineBufferSource = offlineCtx.createBufferSource();
@@ -142,7 +146,7 @@ function renderOffline() {
     .then( buffer => convolver.buffer = buffer );
 }
 
-renderOffline();
+renderLowPassOffline( convolver, 440, 220, 1 );
 
 /*
   const sawsin = (
