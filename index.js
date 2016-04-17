@@ -1,6 +1,7 @@
 import flow from 'lodash/flow';
 import { audioContext, generateAudioBuffer, playSound } from './audio';
 import { sin, saw, saw_i, tri, square, lowpass } from './osc';
+import { rmsd } from './diff';
 
 const A4 = 69;
 const toFreq = note => Math.pow( 2, ( note - A4 ) / 12 ) * 440;
@@ -164,9 +165,11 @@ const lowp_sin_delay = f => {
   );
 };
 
+const sin_a4 = generateAudioBuffer( sin( n_o( 'a', 4 ) ), 0.3, 0.2 );
 const sound = generateAudioBuffer( lowp_sin_delay( n_o( 'a', 4 ) ), 0.3, 0.2 );
 const sound2 = generateAudioBuffer( lowp_sin_delay( n_o( 'a', 3 ) ), 0.3, 0.2 );
 const sound3 = generateAudioBuffer( lowp_sin_delay( n_o( 'e', 4 ) ), 0.3, 0.2 );
+console.log( rmsd( sin_a4.getChannelData(0), sound.getChannelData(0) ) );
 graph(sound.getChannelData(0));
 
 playSound( sound, 0, master );
